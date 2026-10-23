@@ -1,0 +1,28 @@
+# Variáveis de ambiente e Segredos
+.env
+.env.*
+!.env.example
+
+# Credenciais Oracle Cloud (OCI)
+*.pem
+*.key
+oci_api_key*
+config.oci
+
+# Ambientes e compilados (Python / Node / Java)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+target/
+*.class
+
+# IDEs e Sistema Operacional
+.vscode/
+.idea/
+.DS_Store
+
+# Arquivos temporários
+tmp/
+uploads/
