@@ -7,9 +7,14 @@ Mapeamento: contratos/modelos.py
 Fonte única de verdade para os modelos de entrada, saída, entidades clínicas e OCI.
 """
 
+import os
 from typing import List, Optional
 from enum import Enum
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+
+# Carrega variáveis de ambiente do .env caso existam
+load_dotenv()
 
 
 # ============================================================================
@@ -188,8 +193,8 @@ class DecisaoRoteamento(BaseModel):
 
 class ArmazenamentoOCI(BaseModel):
     bucket: str = Field(
-        default="mediflow-documentos-clinicos",
-        description="Nome do bucket no OCI Object Storage Always Free",
+        default_factory=lambda: os.getenv("OCI_BUCKET_NAME", "mediflow-documentos-clinicos"),
+        description="Nome do bucket no OCI Object Storage Always Free (configurável via OCI_BUCKET_NAME)",
         examples=["mediflow-documentos-clinicos"]
     )
     caminho_objeto: str = Field(
