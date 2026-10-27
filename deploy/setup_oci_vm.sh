@@ -50,14 +50,13 @@ if [ -f ".env" ]; then
 fi
 
 # 4. Configuração de Firewall Local (UFW) alinhado à Security List da VCN OCI
+# Apenas o Nginx (80/443) e SSH (22) ficam expostos; 8000 e 8501 ficam restritos a 127.0.0.1
 echo "[4/5] Configurando regras de firewall (UFW) e proteção SSH (Fail2Ban)..."
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow 22/tcp comment "SSH Admin"
 sudo ufw allow 80/tcp comment "Nginx Reverse Proxy HTTP"
 sudo ufw allow 443/tcp comment "HTTPS"
-sudo ufw allow 8000/tcp comment "MediFlow FastAPI"
-sudo ufw allow 8501/tcp comment "MediFlow Streamlit UI"
 sudo ufw --force enable
 
 sudo systemctl enable --now fail2ban
@@ -76,6 +75,5 @@ sudo docker compose -f deploy/docker-compose.yml up -d --build
 echo "============================================================"
 echo " ✅ Deploy do MediFlow concluído com sucesso na OCI!"
 echo " - Interface Streamlit (via Nginx): http://<IP_PUBLICO_VM>/"
-echo " - Interface Streamlit (direta):    http://<IP_PUBLICO_VM>:8501"
-echo " - API FastAPI (Swagger Docs):      http://<IP_PUBLICO_VM>:8000/docs"
+echo " - API FastAPI (via Nginx):         http://<IP_PUBLICO_VM>/api/v1/saude"
 echo "============================================================"

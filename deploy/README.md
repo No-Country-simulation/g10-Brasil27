@@ -13,19 +13,18 @@ Em conformidade com as diretrizes do **Hackathon ONE (Grupo 10)**, toda a arquit
 | :--- | :--- | :--- |
 | **OCI Compute Instance** | `VM.Standard.A1.Flex` (Ampere ARM64, até 4 OCPUs e 24 GB RAM) ou `VM.Standard.E2.1.Micro` (AMD x86_64) | Hospedagem dos containers `mediflow-api` (FastAPI + LangGraph), `mediflow-ui` (Streamlit) e Reverse Proxy Nginx |
 | **OCI Virtual Cloud Network (VCN)** | Sub-rede pública + Internet Gateway + Security Lists | Isolamento de rede e controle estrito de portas de entrada (Ingress Rules) |
-| **OCI Object Storage** | Bucket `mediflow-documentos-clinicos` (Standard Tier – até 20 GB Always Free) | Persistência segregada de documentos e decisões clínicas (`recebidos/`, `processados/rotina/`, `processados/urgentes/`, `auditoria_humana/`) |
+| **OCI Object Storage** | Buckets por status (`mediflow-recebidos`, `mediflow-urgentes`, `mediflow-rotina`, `mediflow-auditoria-humana` – Always Free) | Persistência segregada de documentos e decisões clínicas |
 
 ---
 
 ## 2. Redes e Regras de Segurança (VCN Security List & Firewall)
 
 ### 2.1. Ingress Rules na VCN da OCI
-No console da OCI (**Networking $\rightarrow$ Virtual Cloud Networks $\rightarrow$ Subnet $\rightarrow$ Security Lists**), libere apenas as seguintes portas TCP:
+No console da OCI (**Networking $\rightarrow$ Virtual Cloud Networks $\rightarrow$ Subnet $\rightarrow$ Security Lists**), libere **exclusivamente** as seguintes portas TCP:
 
 - **Porta `22/TCP` (SSH):** Acesso administrativo restrito por chave pública SSH (`ssh-rsa` / `ed25519`).
-- **Porta `80/TCP` (HTTP) / `443/TCP` (HTTPS):** Acesso público via Reverse Proxy Nginx (`deploy/nginx_mediflow.conf`) com rate-limiting (`10 req/s`) e cabeçalhos OWASP.
-- **Porta `8000/TCP` (Opcional/Dev):** Acesso direto à documentação interativa Swagger da API (`http://<IP_PUBLICO>:8000/docs`).
-- **Porta `8501/TCP` (Opcional/Dev):** Acesso direto à interface Streamlit (`http://<IP_PUBLICO>:8501`).
+- **Porta `80/TCP` (HTTP) / `443/TCP` (HTTPS):** Acesso controlado via Reverse Proxy Nginx (`deploy/nginx_mediflow.conf`) com rate-limiting (`10 req/s`), limite de upload (`15M`) e cabeçalhos OWASP.
+- **Portas `8000` e `8501` fechadas para a internet:** No `deploy/docker-compose.yml`, os containers `mediflow-api` (`127.0.0.1:8000:8000`) e `mediflow-ui` (`127.0.0.1:8501:8501`) escutam apenas em loopback (`127.0.0.1`), evitando exposição direta da API e protegendo a cota do Free Tier na OCI.
 
 ### 2.2. Hardening Aplicado nos Containers e na VM
 1. **Execução Não-Root:** O [`deploy/Dockerfile`](Dockerfile) cria e utiliza o usuário dedicado `mediflow` (`UID 10001`), impedindo execução com privilégios de `root`.
