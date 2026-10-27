@@ -1,0 +1,54 @@
+{
+  "cenario": "Cenário 3 - Caso Ambíguo / Ilegível (Human-in-the-Loop)",
+  "descricao": "Receituário médico digitalizado com caligrafia ilegível, carimbo borrado e CRM incompleto. O agente detecta risco, atribui score baixo e encaminha para fila de revisão humana.",
+  "requisicao_entrada": {
+    "documento_id": "DOC-CLIN-2026-3319",
+    "tipo_arquivo": "JPG",
+    "documento_texto": "CLINICA MEDICA SAO MARCOS. Receituario de Controle Especial. Paciente: [ilegível]... Silva. Medico: Dr. A... [carimbo ilegível/rasurado]. Prescricao: 1. Amox... [dosagem ilegivel] mg - Tomar 1 cp... [tempo rasurado]. 2. D... 50mg. Data: 19/10/2026.",
+    "canal_origem": "Ambulatorio"
+  },
+  "resposta_esperada": {
+    "status": "pendente_auditoria",
+    "documento_id": "DOC-CLIN-2026-3319",
+    "classificacao": {
+      "tipo_documento": "Receituário Médico",
+      "especialidade": "Clínica Geral",
+      "nivel_prioridade": "Prioritário",
+      "score_confianca_classificacao": 0.45
+    },
+    "dados_extraidos": {
+      "paciente": {
+        "nome": "Silva (incompleto / ilegível)",
+        "idade": null
+      },
+      "medico_solicitante": {
+        "nome": "Dr. A... (não legível)",
+        "crm": null
+      },
+      "exame_realizado": null,
+      "diagnostico_principal": "Prescrição medicamentosa ilegível",
+      "cid_sugerido": null,
+      "medicamentos": [
+        {
+          "nome": "Amoxicilina (suspeita)",
+          "dosagem": "Ilegível",
+          "frequencia": "Ilegível",
+          "via_administracao": "Oral",
+          "duracao": null
+        }
+      ],
+      "observacoes_clinicas": "Receituário com dados rasurados. Risco de erro de dosagem medicamentosa."
+    },
+    "decisao_roteamento": {
+      "destino_principal": "Fila_Revisao_Humana",
+      "requer_auditoria_humana": true,
+      "justificativa_roteamento": "Score de confiança baixo (0.45). Inconsistências: Nome do paciente ausente ou incompleto; CRM não informado ou vazio; Documento contém trechos ilegíveis ou rasuras detectadas.",
+      "notificacao_gerada": null
+    },
+    "armazenamento_oci": {
+      "bucket": "mediflow-documentos-clinicos",
+      "caminho_objeto": "auditoria_humana/DOC-CLIN-2026-3319.json",
+      "status_backup": "sucesso"
+    }
+  }
+}

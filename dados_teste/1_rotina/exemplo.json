@@ -1,0 +1,46 @@
+{
+  "cenario": "Cenário 1 - Fluxo Padrão Aprovado (Rotina)",
+  "descricao": "Exame laboratorial de rotina (Hemograma Completo) sem achados críticos. Validação bem-sucedida, sem pendências e roteado diretamente para o Prontuário.",
+  "requisicao_entrada": {
+    "documento_id": "DOC-CLIN-2026-1021",
+    "tipo_arquivo": "PDF",
+    "documento_texto": "LABORATÓRIO CENTRAL DE ANÁLISES CLÍNICAS - LAUDO DE EXAME LABORATORIAL.\nPaciente: Mariana Alcantara de Souza, 34 anos.\nSolicitante: Dr. Roberto Viana CRM-SP 98214.\nExame: Hemograma Completo com Plaquetas.\nResultado: Hemácias: 4.5 milhões/mm³, Hemoglobina: 13.8 g/dL, Leucócitos: 6.800/mm³, Plaquetas: 240.000/mm³.\nCONCLUSÃO: Parâmetros hematológicos dentro dos limites da normalidade para a faixa etária. Exame de controle ambulatorial de rotina.",
+    "canal_origem": "Ambulatorio"
+  },
+  "resposta_esperada": {
+    "status": "processado",
+    "documento_id": "DOC-CLIN-2026-1021",
+    "classificacao": {
+      "tipo_documento": "Laudo de Exame Laboratorial",
+      "especialidade": "Hematologia / Clínica Médica",
+      "nivel_prioridade": "Rotina",
+      "score_confianca_classificacao": 0.98
+    },
+    "dados_extraidos": {
+      "paciente": {
+        "nome": "Mariana Alcantara de Souza",
+        "idade": 34
+      },
+      "medico_solicitante": {
+        "nome": "Dr. Roberto Viana",
+        "crm": "98214-SP"
+      },
+      "exame_realizado": "Hemograma Completo com Plaquetas",
+      "diagnostico_principal": "Exame de controle ambulatorial de rotina sem alterações",
+      "cid_sugerido": "Z01.7",
+      "medicamentos": null,
+      "observacoes_clinicas": "Parâmetros hematológicos normais."
+    },
+    "decisao_roteamento": {
+      "destino_principal": "Prontuario_Eletronico_do_Paciente",
+      "requer_auditoria_humana": false,
+      "justificativa_roteamento": "Documento de rotina sem achados críticos arquivado no Prontuário Eletrônico do Paciente.",
+      "notificacao_gerada": null
+    },
+    "armazenamento_oci": {
+      "bucket": "mediflow-documentos-clinicos",
+      "caminho_objeto": "processados/rotina/DOC-CLIN-2026-1021.json",
+      "status_backup": "sucesso"
+    }
+  }
+}
