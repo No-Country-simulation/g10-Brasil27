@@ -1,20 +1,5 @@
-# Dependências do projeto MediFlow
-# Versões fixas (==). Não gerar com pip freeze: incluir só as bibliotecas usadas diretamente pelo código.
-# As bibliotecas da API (fastapi, uvicorn, python-multipart, oci) e do agente (langgraph)
-# entram com a versão instalada por quem as adicionar, no mesmo pull request do código que as usa.
-
-# Interface
-streamlit==1.66.0
-requests==2.34.2
-
-# Contratos e validação
-pydantic==2.14.1
-
-# LLM
-google-genai==1.75.0
-
-# Configuração
-python-dotenv==1.2.4
-
-# Testes
-pytest==9.1.1
+streamlit>=1.39,<2.0
+requests>=2.32,<3.0
+pydantic>=2.8,<3.0
+google-genai>=1.0,<2.0
+python-dotenv>=1.0,<2.0

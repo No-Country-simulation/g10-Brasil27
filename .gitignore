@@ -1,15 +1,8 @@
-# Variáveis de ambiente e segredos
+# Segredos e configurações locais
 .env
 .env.*
 !.env.example
 .streamlit/secrets.toml
-
-# Credenciais Oracle Cloud (OCI)
-# A configuração do OCI fica em ~/.oci/, fora do repositório; estas regras evitam
-# que uma chave copiada para dentro do projeto seja enviada por engano.
-*.pem
-*.key
-oci_api_key*
 
 # Python
 __pycache__/
@@ -18,14 +11,14 @@ __pycache__/
 venv/
 .pytest_cache/
 
-# IDEs e sistema operacional
+# Sistema/IDE
+.DS_Store
 .vscode/
 .idea/
-.DS_Store
 
-# Arquivos temporários e uploads locais
-tmp/
+# Dados de teste locais
 uploads/
-
-# PDFs e imagens NÃO são bloqueados: os cenários de teste em dados_teste/ precisam entrar no Git.
-# Somente documentos fictícios podem ser colocados no repositório.
+*.pdf
+*.png
+*.jpg
+*.jpeg

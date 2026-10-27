@@ -1,124 +1,93 @@
-# 🏥 MediFlow – Agente Autônomo para Triagem, Extração e Roteamento de Documentos Clínicos
+# MediFlow — Parte do Guilherme
 
-> **Hackathon ONE (Grupo 10) – Oracle Next Education & Alura**  
-> **Equipe:** `g10-Brasil27`
+Interface inicial de triagem e prompts de classificação/extração para o projeto MediFlow do Hackathon ONE G10.
 
----
+## Escopo desta pasta
 
-## 📌 Sobre o Projeto
+- Prompts de classificação e extração em `prompts/`.
+- Interface Streamlit para texto, PDF e imagem em `app.py`.
+- Cliente HTTP de exemplo em `api_client.py`.
+- Esquema de saída inicial em `schemas.py`.
+- Configuração de dependências e proteção de segredos.
 
-O **MediFlow** é um agente autônomo desenvolvido para receber documentos clínicos e administrativos em texto, PDF ou imagem, classificá-los automaticamente, extrair entidades clínicas essenciais e roteá-los para o setor hospitalar adequado.
+## Requisitos do projeto-base
 
-O sistema conta com validação condicional e fluxo **Human-in-the-Loop (HITL)** para reter casos ambíguos ou ilegíveis para revisão humana, priorizar alertas de urgência médica e armazenar os documentos de forma segregada no **Oracle Cloud Infrastructure (OCI) Object Storage (Camada Always Free)**.
+Conforme o PDF do projeto, o MediFlow deve receber documentos clínicos em texto/PDF/imagem, classificar o documento, extrair dados administrativos e clínicos explícitos, avaliar consistência/confiança, sinalizar urgência/ambiguidade e encaminhar casos incertos para revisão humana. O projeto completo também requer integração com OCI Object Storage e demonstração de três cenários: rotina, urgência e ambiguidade/revisão humana.
 
----
+**Importante:** esta pasta é apenas a parte inicial da interface e dos prompts. Não implementa por si só o fluxo completo de agentes, a API FastAPI, o armazenamento OCI nem alertas de plantão.
 
-## 🧠 Fluxo de Decisão do Agente
+## Executar no GitHub Codespaces
 
-```mermaid
-graph TD
-    A[📄 Ingestão do Documento<br/>Texto / PDF / Imagem] --> B[🤖 Agente Multimodal LLM<br/>Classificação + Extração de Dados]
-    B --> C[📐 Validação Estruturada<br/>JSON Schema]
-    C --> D{Score de Confiança Adequado<br/>E Dados Consistentes?}
-
-    D -- Não (Ambíguo / Ilegível) --> E[⚠️ Fila de Revisão Humana<br/>Human-in-the-Loop]
-    E --> F[(☁️ OCI Object Storage<br/>auditoria_humana/)]
-
-    D -- Sim --> G{Avaliação de Prioridade Clínica}
-
-    G -- Urgente --> H[🚨 Fila de Emergência Médica<br/>Alerta ao Plantão]
-    H --> I[(☁️ OCI Object Storage<br/>processados/urgentes/)]
-
-    G -- Rotina --> J[🏥 Roteamento Automatizado<br/>Farmácia / Autorizações / PEP]
-    J --> K[(☁️ OCI Object Storage<br/>processados/rotina/)]
-```
-
----
-
-## 📂 Estrutura do Repositório
-
-```text
-g10-Brasil27/
-├── contratos/       # Modelos Pydantic de entrada e saída (contrato de dados)
-├── regras/          # Regras de consistência, score de confiança e critérios de urgência
-├── agente/          # Grafo de decisão e leitura de documentos (texto / PDF / imagem)
-├── prompts/         # Prompts de classificação e extração
-├── api/             # FastAPI: endpoints, execução do roteamento e alertas
-├── armazenamento/   # Persistência no OCI Object Storage (Always Free)
-├── interface/       # Telas Streamlit de envio e de auditoria
-├── dados_teste/     # Cenários obrigatórios da demonstração (somente dados fictícios)
-│   ├── 1_rotina/
-│   ├── 2_urgencia/
-│   └── 3_auditoria_humana/
-├── deploy/          # Docker e configuração da VM na OCI
-├── docs/            # Documentação complementar
-└── tests/           # Testes automatizados
-```
-
-As pastas importadas por outras partes (`contratos/`, `regras/`, `agente/`, `prompts/`, `api/` e `armazenamento/`) têm um arquivo `__init__.py`.
-
----
-
-## ▶️ Como Executar
-
-### Pré-requisitos
-
-- **Python 3.13**
-- Git
-
-Para conferir a versão do Python:
+Abra a pasta no Codespaces e execute no terminal:
 
 ```bash
-python3.13 --version     # Linux ou macOS
-py -3.13 --version       # Windows
-```
-
-### 1. Criar o ambiente virtual e instalar as dependências
-
-Na raiz do repositório.
-
-Linux ou macOS:
-
-```bash
-python3.13 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
+streamlit run app.py
 ```
 
-Windows (PowerShell):
+No Windows PowerShell, para ativar o ambiente use:
 
 ```powershell
-py -3.13 -m venv .venv
 .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
 ```
 
-### 2. Configurar as variáveis de ambiente
+O Streamlit abrirá a interface em uma prévia do Codespaces.
 
-Copie o `.env.example` para `.env` e preencha os valores somente na sua máquina. O `.env` nunca vai para o Git.
+## Conexão com a API
 
-```bash
-cp .env.example .env
+Por padrão, a interface tenta acessar `http://localhost:8000/triagem`. Ajuste no painel lateral ou defina as variáveis `MEDIFLOW_API_URL` e `MEDIFLOW_TRIAGE_PATH`.
+
+O envio de texto usa os campos mostrados no exemplo do PDF:
+- `documento_id`
+- `tipo_arquivo`
+- `documento_texto`
+- `canal_origem`
+
+O envio de arquivos usa provisoriamente `multipart/form-data` com o campo `arquivo`. **Esse contrato ainda precisa ser confirmado com o responsável pelo FastAPI** (endpoint, nome do campo e formato esperado). Não considere a integração de arquivo pronta até testar com a API real.
+
+## Gemini
+
+Os prompts estão em `prompts/classificacao.py` e `prompts/extracao.py`. A dependência `google-genai` foi incluída para a integração de modelo numa próxima etapa. O app atual envia o conteúdo à API da equipe e não chama diretamente o Gemini.
+
+Para guardar uma chave em ambiente local:
+1. Copie `.env.example` para `.env`.
+2. Preencha `GEMINI_API_KEY` no arquivo local.
+3. Nunca compartilhe o arquivo `.env` nem faça commit dele.
+
+## Cenários de demonstração
+
+Use somente texto sintético, sem dados reais de pacientes:
+1. **Rotina:** atestado fictício legível, sem indicação textual de urgência.
+2. **Urgência:** laudo fictício que descreva explicitamente um achado crítico; o fluxo deve encaminhar para a fila urgente segundo as regras da equipe.
+3. **Ambiguidade:** documento com campos ausentes ou texto ilegível; deve solicitar revisão humana.
+
+Os exemplos devem ser validados com a equipe clínica/responsável pelo fluxo. Não use o sistema para tomar decisões médicas reais.
+
+## Diagrama de alto nível
+
+```mermaid
+flowchart TD
+    A[Upload de texto ou arquivo na interface] --> B[API FastAPI da equipe]
+    B --> C[Leitura e classificação do documento]
+    C --> D[Extração estruturada]
+    D --> E[Validação e score de confiança]
+    E --> F{Urgente ou ambíguo?}
+    F -->|Urgente| G[Fila de urgência conforme regras]
+    F -->|Ambíguo / baixa confiança| H[Revisão humana]
+    F -->|Rotina validada| I[Destino administrativo apropriado]
+    G --> J[Persistência OCI / auditoria]
+    H --> J
+    I --> J
 ```
 
-### 3. Executar
+## Pendências de integração
 
-Sempre a partir da raiz do repositório, com a `.venv` ativada e usando `python -m`:
-
-```bash
-python -m uvicorn api.main:app --reload      # API
-python -m streamlit run interface/app.py     # Interface
-python -m pytest                             # Testes
-```
-
-Executado com `python -m`, o Python inclui a pasta atual no caminho de importação. Assim, imports entre pastas (por exemplo, `from contratos.modelos import ...`) funcionam em qualquer parte do projeto.
-
----
-
-## 🧪 Casos de Teste (MVP)
-
-1. **Cenário 1 – Rotina (`dados_teste/1_rotina`):** Fluxo padrão aprovado e encaminhado automaticamente.
-2. **Cenário 2 – Urgência Médica (`dados_teste/2_urgencia`):** Identificação de achado crítico com disparo de alerta de emergência.
-3. **Cenário 3 – Auditoria Humana (`dados_teste/3_auditoria_humana`):** Caso ambíguo ou com baixa confiabilidade direcionado para revisão humana.
-
-> Somente documentos fictícios. Nenhum dado real de paciente entra no repositório nem passa pelo sistema.
+- Confirmar endpoint e contrato JSON/multipart com André.
+- Alinhar o esquema final com a validação Pydantic da Lethicia.
+- Integrar o resultado dos prompts ao pipeline de processamento.
+- Implementar e testar conexão real com Gemini em módulo próprio.
+- Confirmar com a equipe os critérios de confiança, urgência e roteamento.
+- Integrar e validar o armazenamento OCI com o integrante responsável.
