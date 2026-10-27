@@ -5,6 +5,7 @@ Hackathon ONE G10 - Grupo 10: MediFlow
 
 from agente.grafo import (
     GRAFO_MEDIFLOW,
+    analisar_documento,
     construir_grafo_mediflow,
     executar_triagem_mediflow,
     processar_documento,
@@ -13,6 +14,7 @@ from agente.leitor_documentos import ConteudoDocumentoIngerido, ingerir_document
 
 __all__ = [
     "GRAFO_MEDIFLOW",
+    "analisar_documento",
     "construir_grafo_mediflow",
     "executar_triagem_mediflow",
     "processar_documento",

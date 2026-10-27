@@ -16,7 +16,7 @@ import unittest
 from PIL import Image
 from pypdf import PdfWriter
 
-from agente import executar_triagem_mediflow, ingerir_documento_clinico
+from agente import analisar_documento, executar_triagem_mediflow, ingerir_documento_clinico
 from contratos.modelos import (
     DestinoRoteamento,
     DocumentoEntrada,
@@ -55,10 +55,7 @@ class TestAgenteMediFlowLangGraph(unittest.TestCase):
         self.assertEqual(resposta.dados_extraidos.cid_sugerido, "Z01.7")
         self.assertEqual(resposta.decisao_roteamento.destino_principal, DestinoRoteamento.PRONTUARIO_ELETRONICO)
         self.assertFalse(resposta.decisao_roteamento.requer_auditoria_humana)
-        self.assertEqual(
-            resposta.armazenamento_oci.caminho_objeto,
-            "processados/rotina/DOC-CLIN-2026-1021.json",
-        )
+        self.assertIsNone(resposta.armazenamento_oci)
 
     def test_grafo_cenario_2_urgencia_tep_agudo_ponta_a_ponta(self):
         """Executa o Grafo LangGraph completo no Cenário 2 (Urgência Crítica - TEP Agudo)."""
@@ -80,10 +77,7 @@ class TestAgenteMediFlowLangGraph(unittest.TestCase):
         self.assertIsNotNone(resposta.decisao_roteamento.notificacao_gerada)
         self.assertEqual(resposta.decisao_roteamento.notificacao_gerada.canal, "Alerta_Plantao_Medico")
         self.assertIn("TEP", resposta.decisao_roteamento.notificacao_gerada.mensagem)
-        self.assertEqual(
-            resposta.armazenamento_oci.caminho_objeto,
-            "processados/urgentes/DOC-CLIN-2026-8942.json",
-        )
+        self.assertIsNone(resposta.armazenamento_oci)
 
     def test_grafo_cenario_3_auditoria_humana_ponta_a_ponta(self):
         """Executa o Grafo LangGraph completo no Cenário 3 (Human-in-the-Loop / Ilegível)."""
@@ -98,10 +92,7 @@ class TestAgenteMediFlowLangGraph(unittest.TestCase):
         self.assertLess(resposta.classificacao.score_confianca_classificacao, 0.75)
         self.assertEqual(resposta.decisao_roteamento.destino_principal, DestinoRoteamento.FILA_REVISAO_HUMANA)
         self.assertTrue(resposta.decisao_roteamento.requer_auditoria_humana)
-        self.assertEqual(
-            resposta.armazenamento_oci.caminho_objeto,
-            "auditoria_humana/DOC-CLIN-2026-3319.json",
-        )
+        self.assertIsNone(resposta.armazenamento_oci)
 
     def test_grafo_roteamento_receituario_farmacia(self):
         """Valida roteamento de Receituário Médico legível e consistente para Farmácia Hospitalar."""
@@ -123,10 +114,16 @@ class TestAgenteMediFlowLangGraph(unittest.TestCase):
         self.assertEqual(resposta.status, StatusProcessamento.PROCESSADO)
         self.assertEqual(resposta.decisao_roteamento.destino_principal, DestinoRoteamento.FARMACIA_HOSPITALAR)
         self.assertFalse(resposta.decisao_roteamento.requer_auditoria_humana)
-        self.assertEqual(
-            resposta.armazenamento_oci.caminho_objeto,
-            "processados/rotina/DOC-CLIN-2026-5001.json",
-        )
+        self.assertIsNone(resposta.armazenamento_oci)
+
+    def test_interface_analisar_documento_compativel_api(self):
+        """Valida a assinatura analisar_documento(entrada) -> (ClassificacaoDocumento, DadosExtraidos)."""
+        cenario = self._carregar_cenario("1_rotina")
+        entrada = DocumentoEntrada(**cenario["requisicao_entrada"])
+        classificacao, dados = analisar_documento(entrada)
+
+        self.assertEqual(classificacao.tipo_documento, TipoDocumento.LAUDO_EXAME_LABORATORIAL.value)
+        self.assertEqual(dados.paciente.nome, "Mariana Alcantara de Souza")
 
     def test_ingestao_multimodal_imagem_base64(self):
         """Valida pipeline de leitura e normalização de imagem clínica em Base64."""

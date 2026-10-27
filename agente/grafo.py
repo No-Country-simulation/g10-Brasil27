@@ -6,16 +6,17 @@ Responsável: Ingrid Soares
 Mapeamento: agente/grafo.py
 Fluxo: Ingestão Multimodal -> Classificação & Extração (LLM) -> Validação & Score de Confiança
        -> Aresta Condicional (Emergência | Revisão Humana HITL | Fluxo Padrão) -> Resposta Final.
+Fronteira de arquitetura: O grafo decide (classifica, extrai, valida e roteia) e retorna
+`armazenamento_oci=None`; a camada da API grava de fato e preenche `armazenamento_oci`.
 """
 
-from typing import List, Literal, Optional, TypedDict
+from typing import List, Literal, Tuple, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
 from agente.leitor_documentos import ConteudoDocumentoIngerido, ingerir_documento_clinico
 from agente.visao_multimodal import analisar_documento_com_gemini
 from contratos.modelos import (
-    ArmazenamentoOCI,
     ClassificacaoDocumento,
     DadosExtraidos,
     DecisaoRoteamento,
@@ -48,7 +49,6 @@ class EstadoAgenteMediFlow(TypedDict, total=False):
     justificativa_urgencia: str
     caminho_decisao: Literal["emergencia", "revisao_humana", "fluxo_padrao"]
     decisao_roteamento: DecisaoRoteamento
-    armazenamento_oci: ArmazenamentoOCI
     status_final: StatusProcessamento
     resposta_final: TriagemResposta
 
@@ -144,8 +144,7 @@ def decidir_caminho_triagem(
 def no_rotear_emergencia(estado: EstadoAgenteMediFlow) -> EstadoAgenteMediFlow:
     """
     Nó 4A (Ramo Condicional de Urgência Crítica):
-    Encaminha para Fila de Emergência Médica, gera notificação imediata para o plantão
-    e define persistência no prefixo `processados/urgentes/` do OCI Object Storage.
+    Encaminha para Fila de Emergência Médica e gera notificação imediata para o plantão.
     """
     entrada = estado["entrada"]
     classificacao = estado["classificacao"].model_copy(
@@ -162,14 +161,9 @@ def no_rotear_emergencia(estado: EstadoAgenteMediFlow) -> EstadoAgenteMediFlow:
         canal_origem=canal,
         limiar_auditoria_humana=estado.get("limiar_auditoria_humana", 0.75),
     )
-    armazenamento = ArmazenamentoOCI(
-        caminho_objeto=f"processados/urgentes/{entrada.documento_id}.json",
-        status_backup="sucesso",
-    )
     return {
         "classificacao": classificacao,
         "decisao_roteamento": decisao,
-        "armazenamento_oci": armazenamento,
         "status_final": StatusProcessamento.PROCESSADO,
     }
 
@@ -178,7 +172,7 @@ def no_rotear_revisao_humana(estado: EstadoAgenteMediFlow) -> EstadoAgenteMediFl
     """
     Nó 4B (Ramo Condicional Human-in-the-Loop):
     Retém documentos com baixa confiança, dados ausentes ou rasuras para a
-    Fila de Revisão Humana e segrega no prefixo `auditoria_humana/` da OCI.
+    Fila de Revisão Humana (`status = pendente_auditoria`).
     """
     entrada = estado["entrada"]
     classificacao = estado["classificacao"]
@@ -205,13 +199,8 @@ def no_rotear_revisao_humana(estado: EstadoAgenteMediFlow) -> EstadoAgenteMediFl
             notificacao_gerada=None,
         )
 
-    armazenamento = ArmazenamentoOCI(
-        caminho_objeto=f"auditoria_humana/{entrada.documento_id}.json",
-        status_backup="sucesso",
-    )
     return {
         "decisao_roteamento": decisao,
-        "armazenamento_oci": armazenamento,
         "status_final": StatusProcessamento.PENDENTE_AUDITORIA,
     }
 
@@ -220,7 +209,7 @@ def no_rotear_fluxo_padrao(estado: EstadoAgenteMediFlow) -> EstadoAgenteMediFlow
     """
     Nó 4C (Ramo Condicional de Rotina Aprovada):
     Encaminha automaticamente para Farmácia Hospitalar, Auditoria de Autorizações
-    ou Prontuário Eletrônico do Paciente e segrega em `processados/rotina/` na OCI.
+    ou Prontuário Eletrônico do Paciente.
     """
     entrada = estado["entrada"]
     classificacao = estado["classificacao"]
@@ -235,13 +224,8 @@ def no_rotear_fluxo_padrao(estado: EstadoAgenteMediFlow) -> EstadoAgenteMediFlow
         canal_origem=canal,
         limiar_auditoria_humana=estado.get("limiar_auditoria_humana", 0.75),
     )
-    armazenamento = ArmazenamentoOCI(
-        caminho_objeto=f"processados/rotina/{entrada.documento_id}.json",
-        status_backup="sucesso",
-    )
     return {
         "decisao_roteamento": decisao,
-        "armazenamento_oci": armazenamento,
         "status_final": StatusProcessamento.PROCESSADO,
     }
 
@@ -249,6 +233,7 @@ def no_rotear_fluxo_padrao(estado: EstadoAgenteMediFlow) -> EstadoAgenteMediFlow
 def no_consolidar_resposta(estado: EstadoAgenteMediFlow) -> EstadoAgenteMediFlow:
     """
     Nó 5: Consolida e valida o contrato de saída `TriagemResposta` (Pydantic).
+    `armazenamento_oci` permanece `None` para que a API preencha somente após a gravação real.
     """
     entrada = estado["entrada"]
     resposta = TriagemResposta(
@@ -257,7 +242,7 @@ def no_consolidar_resposta(estado: EstadoAgenteMediFlow) -> EstadoAgenteMediFlow
         classificacao=estado["classificacao"],
         dados_extraidos=estado["dados_extraidos"],
         decisao_roteamento=estado["decisao_roteamento"],
-        armazenamento_oci=estado["armazenamento_oci"],
+        armazenamento_oci=None,
     )
     return {"resposta_final": resposta}
 
@@ -310,8 +295,9 @@ def executar_triagem_mediflow(
     limiar_auditoria_humana: float = 0.75,
 ) -> TriagemResposta:
     """
-    Função principal de alto nível para ser consumida pela API FastAPI (André)
-    ou interface Streamlit: executa o Grafo de Decisão completo e retorna `TriagemResposta`.
+    Função principal para consumo pela API FastAPI (André):
+    Executa o Grafo de Decisão completo e retorna `TriagemResposta` com `armazenamento_oci=None`,
+    cabendo à API persistir o resultado no bucket do destino e preencher `armazenamento_oci`.
     """
     estado_inicial: EstadoAgenteMediFlow = {
         "entrada": entrada,
@@ -319,6 +305,22 @@ def executar_triagem_mediflow(
     }
     estado_final = GRAFO_MEDIFLOW.invoke(estado_inicial)
     return estado_final["resposta_final"]
+
+
+def analisar_documento(
+    entrada: DocumentoEntrada,
+) -> Tuple[ClassificacaoDocumento, DadosExtraidos]:
+    """
+    Interface compatível com a assinatura de `api/agente_simulado.py`:
+    Recebe `DocumentoEntrada`, executa ingestão multimodal + extração e devolve
+    `(ClassificacaoDocumento, DadosExtraidos)`.
+    """
+    conteudo = ingerir_documento_clinico(entrada)
+    classificacao, dados, _ = analisar_documento_com_gemini(
+        conteudo=conteudo,
+        canal_origem=entrada.canal_origem or "Pronto_Socorro",
+    )
+    return classificacao, dados
 
 
 # Alias amigável para integração com a API REST
