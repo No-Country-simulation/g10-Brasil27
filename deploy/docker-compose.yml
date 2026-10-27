@@ -1,0 +1,73 @@
+# ============================================================================
+# MediFlow - Orquestração Docker Compose (API + Interface + Reverse Proxy)
+# Hackathon ONE G10 - Grupo 10: MediFlow
+# Responsável: Ingrid Soares (Infra OCI, Redes, Segurança & Deploy)
+# Execução a partir da raiz do projeto:
+#   docker compose -f deploy/docker-compose.yml up -d --build
+# ============================================================================
+
+services:
+  mediflow-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: mediflow-api
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONPATH=/app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ${HOME}/.oci:/home/mediflow/.oci:ro
+    command: ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - mediflow_net
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  mediflow-ui:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: mediflow-ui
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONPATH=/app
+      - MEDIFLOW_API_URL=http://mediflow-api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - mediflow-api
+    command:
+      - "python"
+      - "-m"
+      - "streamlit"
+      - "run"
+      - "interface/app.py"
+      - "--server.port=8501"
+      - "--server.address=0.0.0.0"
+      - "--server.headless=true"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - mediflow_net
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+networks:
+  mediflow_net:
+    driver: bridge
