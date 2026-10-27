@@ -18,3 +18,12 @@ python-dotenv==1.2.4
 
 # Testes
 pytest==9.1.1
+
+# API
+fastapi==0.162.0
+uvicorn==0.54.0
+# httpx é exigido pelo fastapi.testclient.TestClient (testes da API)
+httpx==0.28.1
+
+# OCI
+oci==2.189.0
