@@ -3,9 +3,9 @@
 > **Projeto:** Projeto 2 – 🏥 MediFlow – Agente Autônomo para Triagem, Extração e Roteamento de Documentos Clínicos  
 > **Hackathon:** ONE G10 (Oracle Next Education & Alura)  
 > **Repositório:** `No-Country-simulation/g10-Brasil27`  
-> **Branch de Trabalho:** `feature/agente-deploy-ingrid` (PR #2)  
+> **Branch de Trabalho:** `feature/agente-deploy-ingrid` (PR #2 – Aprovado e pronto para merge na `main`)  
 > **Responsável:** Ingrid Soares — *Grafo de IA (LangGraph), Visão Multimodal / OCR, Segurança, Redes & Deploy OCI*  
-> **Última Atualização:** 27/10/2026
+> **Última Atualização:** 28/10/2026
 
 ---
 
@@ -33,10 +33,14 @@ Implementação do motor de orquestração autônomo com **LangGraph (`StateGrap
 - **`prompts/classificacao.py` (`PROMPT_CLASSIFICACAO`)** e **`prompts/extracao.py` (`PROMPT_EXTRACAO`)**: Módulos compatíveis com os imports da tela Streamlit (`app.py`), unificados em **`prompts/extracao_clinica.py`** (`SYSTEM_PROMPT_MEDIFLOW`, `PROMPT_OCR_MULTIMODAL`, `ResultadoExtracaoLLM`).
 
 ### 1.4. Infraestrutura OCI, Redes, Segurança & Deploy (`deploy/` & `.dockerignore`)
-- **[`.dockerignore`](../.dockerignore)**: Bloqueia vazamento de `.env`, chaves privadas `*.pem` / `*.key`, `.oci/` e `.venv/` para dentro da imagem.
-- **[`deploy/Dockerfile`](../deploy/Dockerfile)**: Build *multi-stage* sobre `python:3.13-slim`, execução com usuário não-root dedicado (`mediflow`, UID `10001`) e `HEALTHCHECK` apontando para a rota oficial da API (`http://localhost:8000/api/v1/saude`).
-- **[`deploy/docker-compose.yml`](../deploy/docker-compose.yml)**: Orquestração dos serviços `mediflow-api` (`127.0.0.1:8000:8000`) e `mediflow-ui` (`127.0.0.1:8501:8501`) restritos ao loopback para não expor portas diretamente à internet, com `cap_drop: [ALL]`, `no-new-privileges:true` e montagem somente leitura (`:ro`) de `~/.oci`.
-- **[`deploy/nginx_mediflow.conf`](../deploy/nginx_mediflow.conf)** e **[`deploy/setup_oci_vm.sh`](../deploy/setup_oci_vm.sh)**: Reverse Proxy Nginx na porta `80`/`443` com *rate-limiting* (`10r/s`) e firewall UFW liberando apenas `22/tcp`, `80/tcp` e `443/tcp` para proteger a conta OCI.
+- **`.dockerignore`**: Bloqueia vazamento de `.env`, chaves privadas `*.pem` / `*.key`, `.oci/` e `.venv/` para dentro da imagem.
+- **`deploy/Dockerfile`**: Build *multi-stage* sobre `python:3.13-slim`, execução com usuário não-root dedicado (`mediflow`, UID `10001`) e `HEALTHCHECK` apontando para a rota oficial da API (`http://localhost:8000/api/v1/saude`).
+- **`deploy/docker-compose.yml`**: Orquestração dos serviços `mediflow-api` (`127.0.0.1:8000:8000`) e `mediflow-ui` (`127.0.0.1:8501:8501`) restritos ao loopback para não expor portas diretamente à internet, com `cap_drop: [ALL]`, `no-new-privileges:true` e montagem somente leitura (`:ro`) de `~/.oci`.
+- **`deploy/nginx_mediflow.conf`** e **`deploy/setup_oci_vm.sh`**: Reverse Proxy Nginx na porta `80`/`443` com *rate-limiting* (`10r/s`) e firewall UFW liberando apenas `22/tcp`, `80/tcp` e `443/tcp` para proteger a conta OCI.
+
+### 1.5. Code Reviews e Integração Realizados pela Ingrid
+- **PR #1 (`feature/contratos-lethicia` — Leticia):** Revisado, testado com o Grafo e aprovado/mergeado na `main` (`1f742e5`).
+- **PR #3 (`feat/api-triagem` — André):** Revisado, validado com os 90 testes automatizados e aprovado/mergeado na `main` (`89c13a4`).
 
 ---
 
@@ -55,16 +59,18 @@ Implementação do motor de orquestração autônomo com **LangGraph (`StateGrap
 | **9** | `997aa2d` | `feat(prompts): adiciona modulos classificacao e extracao compativeis com a interface` | Resolução do item **E1** da integração |
 | **10** | `6fc5839` | `fix(agente): retorna armazenamento_oci=None no grafo e expoe analisar_documento` | Resolução dos itens **E6** e **E7** da integração |
 | **11** | `8ba8cc3` | `fix(deploy): ajusta healthcheck para /api/v1/saude e restringe portas 8000 e 8501 ao localhost` | Resolução dos itens **E5** e **E8** da integração |
+| **12** | `5043494` | `docs(relatorio): atualiza relatorio com correcoes da integracao fase 1` | Atualização do relatório |
 
 ---
 
-## 🛠️ 3. Resolução dos Pontos da Integração Fase 1 (`integracao/fase-1`)
+## 🔄 3. Checklist de Progresso e Próximos Passos
 
-Após o diagnóstico de integração criado pelo André em `docs/integracao-fase-1/erros.md`:
-- **Sobre o conflito de merge do Git (`E9`):** O conflito de merge em `.env.example`, `.gitignore`, `README.md` e `requirements.txt` ocorreu na branch do **Guilherme (`feature/documentos-guilherme`)**, pois o commit de upload substituiu esses 4 arquivos pelas versões antigas do zip. A branch da Ingrid (`feature/agente-deploy-ingrid`) faz merge limpo sem conflito.
-- **Todos os itens de integração da Ingrid (`E1`, `E5`, `E6`, `E7`, `E8`) já foram corrigidos e testados (`10 passed` no `pytest`):**
-  - **E1 (Prompts):** Criados `prompts/classificacao.py` e `prompts/extracao.py` unificados com `prompts/extracao_clinica.py`.
-  - **E5 (Healthcheck Docker):** Atualizado em `deploy/Dockerfile` para `http://localhost:8000/api/v1/saude`.
-  - **E6 (Campo `armazenamento_oci` no Grafo):** O grafo agora retorna `armazenamento_oci=None`, deixando a confirmação de backup exclusivamente para a camada da API após gravar no bucket real.
-  - **E7 (Integração API $\leftrightarrow$ Grafo):** O pacote `agente` expõe tanto `executar_triagem_mediflow(entrada)` quanto `analisar_documento(entrada)`.
-  - **E8 (Segurança de Portas no Deploy OCI):** Removidas as portas `8000` e `8501` do `ufw` em `deploy/setup_oci_vm.sh` e restritas a `127.0.0.1` no `deploy/docker-compose.yml`, expondo apenas o Nginx (`80`/`443`).
+- [x] Sincronização do repositório `g10-Brasil27`.
+- [x] Code Review e Merge do **PR #1** da Leticia (`contratos/` e `regras/`).
+- [x] Implementação do Grafo LangGraph (`agente/grafo.py`), Leitura/Visão Multimodal (`agente/leitor_documentos.py`, `agente/visao_multimodal.py`), Prompts (`prompts/`) e Testes (`tests/test_agente.py`).
+- [x] Implementação da infraestrutura Docker, Nginx e script de firewall OCI (`deploy/`).
+- [x] Resolução de todos os pontos de integração da Fase 1 atribuídos à Ingrid (`E1`, `E5`, `E6`, `E7`, `E8`).
+- [x] Code Review e Merge do **PR #3** do André (`api/` e `armazenamento/`).
+- [ ] **Próximo Passo 1 (Imediato):** Concluir o Merge do **PR #2** (`feature/agente-deploy-ingrid`) na `main` (já aprovado pelo André e com `mergeable_state: clean`).
+- [ ] **Próximo Passo 2 (Integração API $\leftrightarrow$ Grafo):** Criar/revisar a branch `feat/api-grafo` trocando o `api/agente_simulado.py` pela chamada real ao pacote `agente` em `api/triagem.py`.
+- [ ] **Próximo Passo 3 (Deploy Final em Nuvem OCI):** Após o merge da interface Streamlit (`interface/`) e ajustes finais da API, subir a aplicação na VM da OCI Always Free utilizando `deploy/setup_oci_vm.sh` e `deploy/docker-compose.yml`.
