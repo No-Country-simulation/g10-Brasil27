@@ -27,5 +27,8 @@ venv/
 tmp/
 uploads/
 
+# Armazenamento local da API (modo MEDIFLOW_ARMAZENAMENTO=local): documentos de teste gravados em disco
+armazenamento_local/
+
 # PDFs e imagens NÃO são bloqueados: os cenários de teste em dados_teste/ precisam entrar no Git.
 # Somente documentos fictícios podem ser colocados no repositório.
