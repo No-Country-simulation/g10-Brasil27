@@ -113,6 +113,62 @@ python -m pytest                             # Testes
 
 Executado com `python -m`, o Python inclui a pasta atual no caminho de importação. Assim, imports entre pastas (por exemplo, `from contratos.modelos import ...`) funcionam em qualquer parte do projeto.
 
+### 4. Modos de armazenamento da API
+
+A API grava cada documento recebido e a resposta da triagem. Onde isso é gravado depende da variável `MEDIFLOW_ARMAZENAMENTO`:
+
+| Modo | Onde grava | Credenciais | Quem usa |
+|------|------------|-------------|----------|
+| `local` (padrão) | Pasta `armazenamento_local/<bucket>/` no disco | Nenhuma | Quem desenvolve e o CI |
+| `oci` | Buckets do OCI Object Storage | Perfil do `~/.oci/config` (`OCI_AUTH=api_key`) ou da VM (`OCI_AUTH=instance_principal`) | Quem tem acesso à conta da OCI |
+
+**Se você não tem credencial da OCI, não faça nada: o modo `local` já é o padrão.** Com o `.env` copiado do `.env.example` (variáveis vazias), a API grava em disco. A pasta `armazenamento_local/` não vai para o Git.
+
+Para escolher o modo só em uma execução, sobrepondo o `.env` (Linux ou macOS):
+
+```bash
+MEDIFLOW_ARMAZENAMENTO=local python -m uvicorn api.main:app --reload
+```
+
+Em cada modo, os objetos ficam em cinco buckets (ou cinco pastas, no modo `local`). O prefixo é `OCI_BUCKET_PREFIXO` (padrão `mediflow`):
+
+| Bucket | O que recebe |
+|--------|--------------|
+| `mediflow-recebidos` | Todo documento recebido, antes de processar |
+| `mediflow-urgentes` | Resposta dos casos que vão para a fila de emergência |
+| `mediflow-rotina` | Resposta dos casos de farmácia, autorizações e prontuário |
+| `mediflow-auditoria-humana` | Resposta dos casos retidos para revisão humana |
+| `mediflow-rejeitados` | Reservado (ainda sem uso) |
+
+No modo `oci`, os buckets precisam existir antes. Cada objeto se chama `<documento_id>.json` e **nunca é sobrescrito**: enviar o mesmo `documento_id` duas vezes devolve `409`. Para repetir um teste, use outro `documento_id`. Se a gravação falhar (`503`), o reenvio do mesmo `documento_id` funciona, porque a entrada parcial é desfeita.
+
+Todas as variáveis estão comentadas no `.env.example`.
+
+### 5. Endpoints e exemplo
+
+| Método | Rota | O que faz |
+|--------|------|-----------|
+| `GET` | `/api/v1/saude` | Responde `{"status": "ok", "armazenamento": "local"}` (ou `"oci"`) |
+| `POST` | `/api/v1/triagem` | Recebe um `DocumentoEntrada` e devolve a `TriagemResposta` |
+
+Respostas de erro da triagem: `422` (`documento_id` fora do padrão `[A-Za-z0-9-]{1,64}`, ou sem `documento_texto` e sem `documento_base64`), `409` (`documento_id` já recebido) e `503` (falha ao gravar no armazenamento).
+
+Enquanto o grafo de decisão com LLM não existe, a API usa um agente simulado (`api/agente_simulado.py`): ele só reconhece o texto exato dos 3 cenários de `dados_teste/`. Qualquer outro documento é tratado como "não identificado" e vai para a revisão humana.
+
+Com a API no ar, o exemplo abaixo envia o cenário de urgência (Linux ou macOS). O `documento_id` do exemplo muda para `TESTE-001`, para você poder repetir o teste mudando o número:
+
+```bash
+python -c "
+import json
+d = json.load(open('dados_teste/2_urgencia/exemplo.json', encoding='utf-8'))['requisicao_entrada']
+d['documento_id'] = 'TESTE-001'
+print(json.dumps(d))
+" | curl -s -X POST http://localhost:8000/api/v1/triagem \
+  -H "Content-Type: application/json" --data-binary @-
+```
+
+A resposta traz `decisao_roteamento.destino_principal = "Fila_Emergencia_Medica"` e `armazenamento_oci.bucket = "mediflow-urgentes"`. Em qualquer sistema, também dá para testar pela interface interativa em `http://localhost:8000/docs`.
+
 ---
 
 ## 🧪 Casos de Teste (MVP)
