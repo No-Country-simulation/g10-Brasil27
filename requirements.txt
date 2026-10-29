@@ -13,6 +13,11 @@ pydantic==2.14.1
 # LLM
 google-genai==1.75.0
 
+# Agente e leitura multimodal
+langgraph==1.2.18
+pypdf==6.21.2
+pillow==12.3.0
+
 # Configuração
 python-dotenv==1.2.4
 

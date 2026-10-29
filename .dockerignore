@@ -1,0 +1,25 @@
+# Segredos e variáveis de ambiente (NUNCA incluir na imagem Docker)
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*.pem
+*.key
+oci_api_key*
+.oci/
+
+# Controle de versão e ambientes virtuais locais
+.git/
+.gitignore
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDEs e arquivos temporários
+.vscode/
+.idea/
+.DS_Store
+tmp/
+uploads/
