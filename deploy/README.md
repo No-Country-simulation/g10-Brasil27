@@ -13,7 +13,7 @@ Em conformidade com as diretrizes do **Hackathon ONE (Grupo 10)**, toda a arquit
 | :--- | :--- | :--- |
 | **OCI Compute Instance** | `VM.Standard.A1.Flex` (Ampere ARM64, até 4 OCPUs e 24 GB RAM) ou `VM.Standard.E2.1.Micro` (AMD x86_64) | Hospedagem dos containers `mediflow-api` (FastAPI + LangGraph), `mediflow-ui` (Streamlit) e Reverse Proxy Nginx |
 | **OCI Virtual Cloud Network (VCN)** | Sub-rede pública + Internet Gateway + Security Lists | Isolamento de rede e controle estrito de portas de entrada (Ingress Rules) |
-| **OCI Object Storage** | Buckets por status (`mediflow-recebidos`, `mediflow-urgentes`, `mediflow-rotina`, `mediflow-auditoria-humana` – Always Free) | Persistência segregada de documentos e decisões clínicas |
+| **OCI Object Storage** | Buckets por status (`mediflow-recebidos`, `mediflow-urgentes`, `mediflow-rotina`, `mediflow-auditoria-humana`, `mediflow-rejeitados` – Always Free) | Persistência segregada de documentos e decisões clínicas |
 
 ---
 
@@ -32,21 +32,33 @@ No console da OCI (**Networking $\rightarrow$ Virtual Cloud Networks $\rightarro
 3. **Proteção de Credenciais e Segredos:**
    - O arquivo [`.dockerignore`](../.dockerignore) bloqueia `.env`, `*.pem`, `*.key` e `.oci/` no contexto de build da imagem.
    - As credenciais do SDK da OCI (`~/.oci`) são montadas em modo **somente leitura (`:ro`)** no container da API.
-   - O script [`deploy/setup_oci_vm.sh`](setup_oci_vm.sh) aplica permissões `0700` em `~/.oci` e `0600` nas chaves privadas `.pem` e no `.env`, além de ativar `ufw` e `fail2ban`.
+   - O diretório `~/.oci` recebe permissão para o usuário `10001:10001` (`mediflow` do container) ler as chaves com `sudo chown -R 10001:10001 ~/.oci`.
+   - O firewall da VM libera as portas 80 e 443 diretamente no `iptables` (persistidas com `iptables-persistent` / `netfilter-persistent`), alinhado às Ingress Rules da VCN e sem conflitos com as regras REJECT nativas da imagem Ubuntu da OCI (sem utilizar `ufw`).
 
 ---
 
 ## 3. Passo a Passo de Deploy
 
 ### Opção A: Deploy Automatizado em VM OCI (Ubuntu LTS)
-Conectado via SSH na instância OCI Compute, clone o repositório, configure o `.env` na raiz do projeto e execute:
+Conectado via SSH na instância OCI Compute com seu usuário (`ubuntu`), clone o repositório, configure o `.env` na raiz do projeto e execute:
 
 ```bash
 cp .env.example .env
-# Preencha LLM_API_KEY, OCI_REGION, OCI_NAMESPACE e OCI_BUCKET_PREFIXO (padrão mediflow) no .env.
-# Preencha também MEDIFLOW_API_KEY: a API não sobe sem ela. Gere com:
-#   python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 
+# Preencha as variáveis obrigatórias do servidor no .env:
+#   MEDIFLOW_ARMAZENAMENTO=oci       # Obrigatório para gravar nos buckets OCI (e não no disco local)
+#   OCI_AUTH=api_key                 # Autenticação via arquivo ~/.oci/config
+#   OCI_CONFIG_PROFILE=DEFAULT       # Perfil do ~/.oci/config (ou o que você configurou)
+#   OCI_REGION=sa-saopaulo-1         # Sua região OCI
+#   OCI_BUCKET_PREFIXO=mediflow      # Prefixo dos seus 5 buckets
+#   LLM_API_KEY=<sua-chave-gemini>   # Chave do Google AI Studio
+#   MEDIFLOW_API_KEY=<chave-servidor># Gerada com: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+# (Nota: OCI_NAMESPACE pode ficar vazio, pois a API consulta automaticamente via SDK)
+
+# Ajuste as permissões das credenciais OCI para o UID 10001 do container:
+sudo chown -R 10001:10001 ~/.oci
+
+# Execute o script sem sudo (seu usuário deve pertencer ao grupo docker para preservar o $HOME):
 chmod +x deploy/setup_oci_vm.sh
 ./deploy/setup_oci_vm.sh
 ```

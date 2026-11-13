@@ -32,7 +32,7 @@ Por tras dessa interface, opera um ecossistema rigoroso de validacao clinica, qu
 
 Desenvolvi tambem o motor de regras clinicas deterministico, responsavel por calcular o Score de Confianca e apontar inconsistencias, como ausencia de CRM valido ou medicamentos ilegiveis.
 
-Quando um documento apresenta confiabilidade reduzida, como esta receita ilegivel do Cenario 3, o sistema retem o documento na Fila de Revisao Humana (Human-in-the-Loop). O auditor clinico analisa o documento original, revisa as informacoes extraidas, faz os ajustes necessarios no formulario e aprova ou rejeita o roteamento.
+Quando um documento apresenta confiabilidade reduzida, como esta receita ilegivel do Cenario 3, o sistema retem o documento na Fila de Revisao Humana (Human-in-the-Loop). O auditor clinico analisa as informacoes extraidas pelo modelo, insere sua justificativa tecnica e decide o roteamento definitivo (rotina, urgente ou rejeitado) diretamente pelo painel.
 
 A orquestracao de todo esse fluxo inteligente e conduzida pelo agente de decisao, implementado pela Ingrid."
 
@@ -46,7 +46,7 @@ A orquestracao de todo esse fluxo inteligente e conduzida pelo agente de decisao
 **Fala da Ingrid:**  
 "Para estruturar o raciocinio e as decisoes do agente, desenvolvi o Grafo de Decisao Condicional utilizando LangGraph. O documento percorre nos dedicados: Ingestao, Classificacao e Extracao, Avaliacao de Consistencia e Urgencia, e as Arestas de Roteamento Especializado.
 
-Integrei a Visao Multimodal com Google Gemini (gemini-2.5-flash) utilizando Structured Outputs. O pipeline processa PDFs digitais nativamente e direciona PDFs escaneados ou fotos de receitas diretamente para a visao do modelo, contando tambem com fallback deterministico local para total resiliencia.
+Integrei a Visao Multimodal com Google Gemini (gemini-3.5-flash-lite) utilizando Structured Outputs. O pipeline processa PDFs digitais nativamente e direciona PDFs escaneados ou fotos de receitas diretamente para a visao do modelo, contando tambem com fallback deterministico local para total resiliencia.
 
 Ao processarmos este laudo com suspeita de Tromboembolismo Pulmonar Agudo (TEP), o agente identifica a criticidade imediatamente, eleva a prioridade para Urgente e gera uma notificacao instantanea para o canal do Plantao Medico.
 
@@ -57,14 +57,14 @@ A solucao foi empacotada em containers Docker multi-stage com usuario nao-root e
 ## Bloco 4: API FastAPI, OCI Object Storage Always Free e Conclusao (1.5 min)
 
 **Apresentador:** Andre  
-**Cenario de tela:** Aba "Historico & Buckets OCI" no Streamlit ou documentacao Swagger em /docs, exibindo os documentos segregados nos buckets.  
+**Cenario de tela:** Aba "Historico & Buckets OCI" no Streamlit e health check da API em /api/v1/saude, exibindo os documentos segregados nos buckets.  
 
 **Fala do Andre:**  
 "Para interligar todas as camadas da aplicacao, desenvolvi a API REST em FastAPI, expondo as rotas de saude e triagem clinica. A API opera com controle transacional e compensacao automatica, garantindo que qualquer falha nao corrompa os registros.
 
 Em total conformidade com as diretrizes do programa ONE, implementamos a persistencia dos documentos no Oracle Cloud Infrastructure (OCI) Object Storage na camada Always Free.
 
-Os arquivos e as respostas estruturadas sao segregados por status nos buckets dedicados: mediflow-recebidos, mediflow-rotina para prontuario e farmacia, mediflow-urgentes para casos criticos e mediflow-auditoria-humana para revisao.
+Os arquivos e as respostas estruturadas sao segregados por status nos cinco buckets dedicados: mediflow-recebidos, mediflow-rotina para prontuario e farmacia, mediflow-urgentes para casos criticos, mediflow-auditoria-humana para revisao e mediflow-rejeitados para documentos descartados na auditoria.
 
 O MediFlow entrega uma solucao integrada: usabilidade simples, criterios clinicos consistentes, IA multimodal autonoma e infraestrutura em nuvem segura, reduzindo o tempo de triagem de horas para segundos com total rastreabilidade. Muito obrigado!"
 

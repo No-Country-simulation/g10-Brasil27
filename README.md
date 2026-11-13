@@ -21,22 +21,22 @@ graph TD
     A[📄 Ingestão do Documento<br/>Texto / PDF / Imagem] --> B[💾 OCI Object Storage<br/>mediflow-recebidos/]
     B --> C[🤖 Agente Multimodal LLM<br/>Gemini 3.5 Flash Lite + Fallback]
     C --> D[📐 Validação Estruturada<br/>Modelos Pydantic]
-    D --> E{Score de Confiança Adequado<br/>E Dados Consistentes?}
+    D --> E{Achado de Urgência Crítica?}
 
-    E -- Não (Ambíguo / Ilegível) --> F[⚠️ Fila de Revisão Humana<br/>Human-in-the-Loop]
-    F --> G[(☁️ OCI Object Storage<br/>mediflow-auditoria-humana/)]
+    E -- Sim --> F[🚨 Fila de Emergência Médica<br/>Alerta ao Plantão Médico]
+    F --> G[(☁️ OCI Object Storage<br/>mediflow-urgentes/)]
 
-    G --> H{Decisão do Revisor Clínico<br/>Aprovar / Rejeitar}
-    H -- Aprovado Rotina --> L[(☁️ OCI Object Storage<br/>mediflow-rotina/)]
-    H -- Aprovado Urgência --> K[(☁️ OCI Object Storage<br/>mediflow-urgentes/)]
-    H -- Rejeitado --> M[(☁️ OCI Object Storage<br/>mediflow-rejeitados/)]
+    E -- Não --> H{Score de Confiança Adequado<br/>E Dados Consistentes?}
 
-    E -- Sim --> I{Avaliação de Prioridade Clínica}
+    H -- Não (Ambíguo / Ilegível / CRM Inválido) --> I[⚠️ Fila de Revisão Humana<br/>Human-in-the-Loop]
+    I --> J[(☁️ OCI Object Storage<br/>mediflow-auditoria-humana/)]
 
-    I -- Urgente --> J[🚨 Fila de Emergência Médica<br/>Alerta ao Plantão Médico]
-    J --> K
+    J --> K{Decisão do Revisor Clínico}
+    K -- Destino Rotina --> L[(☁️ OCI Object Storage<br/>mediflow-rotina/)]
+    K -- Destino Urgente --> G
+    K -- Destino Rejeitado --> M[(☁️ OCI Object Storage<br/>mediflow-rejeitados/)]
 
-    I -- Rotina --> N[🏥 Roteamento Automatizado<br/>Farmácia / Autorizações / PEP]
+    H -- Sim --> N[🏥 Roteamento Automatizado<br/>Farmácia / Autorizações / PEP]
     N --> L
 ```
 
@@ -70,7 +70,7 @@ As pastas importadas por outras partes (`contratos/`, `regras/`, `agente/`, `pro
 
 ### Pré-requisitos
 
-- **Python 3.10 a 3.13** (testado e homologado no Linux e macOS)
+- **Python 3.11 a 3.13** (o Docker e o CI usam o 3.13)
 - Git
 
 Para conferir a versão do Python:
@@ -82,7 +82,7 @@ py --version             # Windows
 
 ### 1. Criar o ambiente virtual e instalar as dependências
 
-Na raiz do repositório.
+Na raiz do repositório (recomendado com Python 3.13).
 
 Linux ou macOS:
 
@@ -200,7 +200,7 @@ A resposta traz `decisao_roteamento.destino_principal = "Fila_Emergencia_Medica"
 ### 6. Chave de acesso e limites da API
 
 - **Chave de acesso:** toda requisição precisa do cabeçalho `X-API-Key` igual a `MEDIFLOW_API_KEY`. A única exceção é `GET /api/v1/saude` (o healthcheck do Docker). Sem a chave certa, a resposta é `401` e nada é gravado.
-- **A API não sobe sem a chave**, nem com menos de 32 caracteres (a mensagem de erro diz como gerar). Gere com `python -c "import secrets; print(secrets.token_urlsafe(32))"` e coloque o mesmo valor no `.env` local, no do servidor e no de quem mais rodar a API ou o painel. O painel Streamlit lê `MEDIFLOW_API_KEY` e manda o cabeçalho sozinho. Só para desenvolvimento, `MEDIFLOW_API_AUTH=desligada` sobe a API sem chave.
+- **A API não sobe sem a chave**, nem com menos de 32 caracteres (a mensagem de erro diz como gerar). Cada ambiente (o computador de cada pessoa e o servidor) gera a sua própria chave com `python -c "import secrets; print(secrets.token_urlsafe(32))"` e a coloca no próprio `.env`. A API e o painel do mesmo ambiente leem a mesma chave. Não compartilhe a chave entre ambientes nem por mensagem. O painel Streamlit lê `MEDIFLOW_API_KEY` e manda o cabeçalho sozinho. Só para desenvolvimento, `MEDIFLOW_API_AUTH=desligada` sobe a API sem chave.
 - **Tamanho:** o corpo da requisição tem no máximo 15 MB (o mesmo `client_max_body_size 15M` do nginx); acima disso, `413`.
 - **Tetos por dia da triagem:** 100 documentos (`MEDIFLOW_TETO_DIARIO_DOCUMENTOS`) e 300 MB (`MEDIFLOW_TETO_DIARIO_MB`). Ao atingir um, `429`, sem gravar nada e sem chamar o Gemini. A contagem fica em memória e zera à meia-noite de `America/Sao_Paulo` e quando a API reinicia.
 
@@ -220,3 +220,14 @@ A resposta traz `decisao_roteamento.destino_principal = "Fila_Emergencia_Medica"
 3. **Cenário 3 – Auditoria Humana (`dados_teste/3_auditoria_humana`):** Caso ambíguo ou com baixa confiabilidade direcionado para revisão humana.
 
 > Somente documentos fictícios. Nenhum dado real de paciente entra no repositório nem passa pelo sistema.
+
+---
+
+## 👥 Equipe e Créditos
+
+Projeto desenvolvido pelo **Grupo 10 (g10-Brasil27)** para o **Hackathon ONE (Oracle Next Education & Alura)**:
+
+* **Guilherme Araujo Silva:** Desenvolveu a lógica de envio de arquivos na interface (geração de ID na sessão, envio em Base64 via API, teto de 10 MB e mensagens amigáveis de erro para códigos 409, 422 e 503), incorporada à aba de envio do painel com coautoria (`2a1ce95`), documentação inicial e abertura do pitch.
+* **Lethicia Almeida:** Criou a arquitetura inicial do painel Streamlit (`7a3c54b`), com o layout visual e as abas de envio, fila de auditoria clínica e histórico. Desenvolveu os contratos de dados estritos com Pydantic (`contratos/modelos.py`), o motor determinístico de regras clínicas (`regras/regras_clinicas.py`), cálculo do Score de Confiança, validação de CRM e a massa de dados sintética dos 3 cenários obrigatórios.
+* **Ingrid Soares:** Conectou o painel Streamlit à API e ao grafo (`MEDIFLOW_API_URL`) e implementou o pipeline de upload multimodal para PDF e imagem em Base64 (`f9f082d`). Desenvolveu o Grafo de Decisão Condicional com LangGraph (`agente/grafo.py`), o pipeline de leitura multimodal e OCR (`agente/leitor_documentos.py`, `agente/visao_multimodal.py`), os prompts estruturados de classificação e extração clínica (`prompts/`), os testes unitários do agente e a infraestrutura de containerização Docker multi-stage com usuário não-root e docker-compose.
+* **André Teixeira:** Integrou a lógica de envio do Guilherme ao painel da Lethicia (`2a1ce95`), conectou a fila de auditoria e registro de decisões humanas à API (`97fcb09`) e implementou o cache em memória das listagens (`743db9c`). Desenvolveu os endpoints REST da API FastAPI (`api/`), a camada de persistência segregada nos 5 buckets do OCI Object Storage com compensação transacional em falhas (`armazenamento/repositorio.py`), as políticas de segurança e tetos diários (`api/seguranca.py`), e realizou o deploy em produção na VM OCI Compute.

@@ -426,9 +426,9 @@ ul.bullet-list li::before {
     <div class="card highlight">
       <div style="font-size: 0.8rem; font-weight: 700; color: #0b4f6c; text-transform: uppercase;">Membro 1</div>
       <div class="card-title" style="margin-bottom: 6px;">Guilherme Araujo</div>
-      <div style="font-size: 0.82rem; font-weight: 600; color: #0284c7; margin-bottom: 12px;">Prompts Gemini & Tela de Envio</div>
+      <div style="font-size: 0.82rem; font-weight: 600; color: #0284c7; margin-bottom: 12px;">Interface Streamlit (Aba de Envio)</div>
       <ul class="bullet-list" style="font-size: 0.84rem;">
-        <li>Estruturação dos prompts de classificação e extração médica.</li>
+        <li>Abertura do pitch, contextualização do problema e dor de mercado.</li>
         <li>Tela de envio e triagem no Streamlit (Upload de PDF/Imagem/Texto).</li>
         <li>Abertura do pitch, dor de mercado e usabilidade hospitalar.</li>
       </ul>
@@ -456,11 +456,11 @@ ul.bullet-list li::before {
     <div class="card highlight">
       <div style="font-size: 0.8rem; font-weight: 700; color: #0b4f6c; text-transform: uppercase;">Membro 3</div>
       <div class="card-title" style="margin-bottom: 6px;">Ingrid Soares</div>
-      <div style="font-size: 0.82rem; font-weight: 600; color: #0284c7; margin-bottom: 12px;">Grafo LangGraph & Visão Multimodal</div>
+      <div style="font-size: 0.82rem; font-weight: 600; color: #0284c7; margin-bottom: 12px;">Grafo LangGraph, Multimodal & Prompts</div>
       <ul class="bullet-list" style="font-size: 0.84rem;">
         <li>Grafo de Decisão Condicional com nós de decisão no LangGraph.</li>
         <li>Pipeline multimodal OCR (PDF digital/escaneado e imagem Base64).</li>
-        <li>Integração Gemini com Structured Outputs, fallback e Docker hardening.</li>
+        <li>Prompts de extração médica, Gemini com Structured Outputs e Docker hardening.</li>
       </ul>
       <div style="margin-top: auto; padding-top: 10px;">
         <span class="badge urgent">Pitch Bloco 3</span>
@@ -567,7 +567,7 @@ ul.bullet-list li::before {
       <div class="speech-box" style="border-left-color: #d97706;">
         "Na saúde, a segurança exige rigor absoluto. Estruturei os Contratos de Dados com Pydantic, garantindo schemas estritos de paciente, médico e CRM.<br><br>
         Desenvolvi o motor de regras clínicas determinístico para calcular o Score de Confiança. Quando um documento tem baixa confiabilidade — como esta receita ilegível do Cenário 3 —, o MediFlow o retém na Fila de Revisão Humana (Human-in-the-Loop).<br><br>
-        O auditor clínico revisa o original, preenche os dados e decide o roteamento com total rastreabilidade. Toda essa orquestração é conduzida pelo agente implementado pela Ingrid."
+        O auditor clínico avalia os dados extraídos, insere sua justificativa técnica e decide o roteamento (rotina, urgente ou rejeitado) com total rastreabilidade. Toda essa orquestração é conduzida pelo agente implementado pela Ingrid."
       </div>
     </div>
   </div>
@@ -645,7 +645,7 @@ ul.bullet-list li::before {
       <div class="card-title">Tópicos do Discurso</div>
       <ul class="bullet-list">
         <li><strong>API FastAPI Transacional:</strong> Endpoints de triagem e auditoria com controle de concorrência e compensação automática contra corrupção de dados.</li>
-        <li><strong>Persistência no OCI Object Storage:</strong> Segregação nativa nos 5 buckets Always Free (<code>recebidos</code>, <code>rotina</code>, <code>urgentes</code>, <code>auditoria-humana</code> e <code>rejeitados</code>).</li>
+        <li><strong>Persistência no OCI Object Storage:</strong> Segregação nativa nos cinco buckets Always Free: mediflow-recebidos, rotina, urgentes, auditoria-humana e rejeitados.</li>
         <li><strong>Deploy Completo em Nuvem OCI:</strong> Demonstração da aplicação rodando na VM Compute pública (<code>137.131.182.189</code>).</li>
         <li><strong>Fechamento do Pitch:</strong> Redução do tempo de triagem de horas para segundos, rastreabilidade médica absoluta e agradecimentos.</li>
       </ul>

@@ -354,7 +354,7 @@ ul.feature-list li::before {
     <div class="team-grid">
       <div class="member-box">
         <div class="member-name">Guilherme Araujo</div>
-        <div class="member-role">Prompts Gemini & Tela Streamlit</div>
+        <div class="member-role">Interface Streamlit (Aba de Envio)</div>
       </div>
       <div class="member-box">
         <div class="member-name">Lethicia</div>
@@ -362,7 +362,7 @@ ul.feature-list li::before {
       </div>
       <div class="member-box">
         <div class="member-name">Ingrid Soares</div>
-        <div class="member-role">Grafo LangGraph & Visão Multimodal</div>
+        <div class="member-role">Grafo LangGraph, Multimodal & Prompts</div>
       </div>
       <div class="member-box">
         <div class="member-name">André Teixeira</div>
@@ -423,12 +423,12 @@ ul.feature-list li::before {
 
   <div class="grid-3" style="margin-top: 0.25in; flex: 0.55;">
     <div class="card" style="text-align: center; justify-content: center; background: #f1f5f9;">
-      <div class="stat-num">4h a 48h</div>
-      <div class="stat-desc">Tempo médio de triagem manual em hospitais</div>
+      <div class="stat-num" style="font-size: 2.1rem;">Horas</div>
+      <div class="stat-desc">Espera média na triagem manual</div>
     </div>
     <div class="card" style="text-align: center; justify-content: center; background: #e0f2fe;">
-      <div class="stat-num" style="color: #0369a1;">&lt; 2 seg</div>
-      <div class="stat-desc">Tempo de triagem e extração no MediFlow</div>
+      <div class="stat-num" style="color: #0369a1; font-size: 2.1rem;">Segundos</div>
+      <div class="stat-desc">Processamento autônomo com o MediFlow</div>
     </div>
     <div class="card" style="text-align: center; justify-content: center; background: #dcfce7;">
       <div class="stat-num" style="color: #15803d;">100%</div>
@@ -470,7 +470,7 @@ ul.feature-list li::before {
       <ul class="feature-list" style="margin-top: 0.1in;">
         <li><strong>Classificação Precisa:</strong> Identifica tipo do documento (Laudo, Receita, Atestado, Guia) e especialidade médica correspondente.</li>
         <li><strong>Extração Semântica:</strong> Mapeia nome e idade do paciente, profissional solicitante, CRM com UF, diagnóstico principal e código CID-10.</li>
-        <li><strong>Structured Outputs:</strong> Modelo configurado para responder exclusivamente schemas JSON estruturados, eliminando alucinações.</li>
+        <li><strong>Structured Outputs:</strong> Modelo configurado para responder exclusivamente schemas JSON tipados, minimizando alucinações.</li>
         <li><strong>Tratamento Defensivo:</strong> Parser resiliente para extração de dados mesmo com marcações markdown ou variações na resposta.</li>
       </ul>
     </div>
@@ -544,7 +544,7 @@ ul.feature-list li::before {
         Quando a IA detecta baixa confiança (score &lt; 0.75), rasuras ou CRM em branco, o documento é retido com status <code>pendente_auditoria</code> no bucket <code>mediflow-auditoria-humana</code>.
       </div>
       <ul class="feature-list" style="margin-top: 0.15in;">
-        <li><strong>Inspeção Visual do Original:</strong> Auditor visualiza o documento recebido e os dados parciais extraídos pela IA.</li>
+        <li><strong>Análise dos Dados Clínicos:</strong> Auditor analisa os dados clínicos extraídos pela IA e as pendências apontadas.</li>
         <li><strong>Formulário de Decisão Auditada:</strong> O auditor escolhe o destino (Rotina, Urgente ou Rejeitado), insere seu nome e justificativa clínica obrigatória.</li>
         <li><strong>Roteamento Imediato:</strong> A decisão move o arquivo no armazenamento para o bucket correspondente e registra a trilha de auditoria.</li>
       </ul>
@@ -709,7 +709,7 @@ ul.feature-list li::before {
     <div class="card routine">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
         <span class="pill routine">Cenário 1 · Rotina</span>
-        <strong style="color: #059669; font-size: 0.88rem;">Score: 0.98</strong>
+        <strong style="color: #059669; font-size: 0.88rem;">Exemplo: 0.98</strong>
       </div>
       <div class="card-title" style="font-size: 1.15rem; color: #065f46;">Hemograma de Rotina</div>
       <div class="card-body" style="font-size: 0.86rem;">
@@ -729,7 +729,7 @@ ul.feature-list li::before {
     <div class="card urgent">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
         <span class="pill urgent">Cenário 2 · Urgência</span>
-        <strong style="color: #dc2626; font-size: 0.88rem;">Score: 0.99</strong>
+        <strong style="color: #dc2626; font-size: 0.88rem;">Exemplo: 0.99</strong>
       </div>
       <div class="card-title" style="font-size: 1.15rem; color: #991b1b;">TEP Agudo (Emergência)</div>
       <div class="card-body" style="font-size: 0.86rem;">
@@ -748,7 +748,7 @@ ul.feature-list li::before {
     <div class="card hitl">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
         <span class="pill hitl">Cenário 3 · HITL</span>
-        <strong style="color: #d97706; font-size: 0.88rem;">Score: 0.00</strong>
+        <strong style="color: #d97706; font-size: 0.88rem;">Exemplo: 0.00</strong>
       </div>
       <div class="card-title" style="font-size: 1.15rem; color: #92400e;">Receita Rasurada / Ilegível</div>
       <div class="card-body" style="font-size: 0.86rem;">
@@ -824,9 +824,9 @@ ul.feature-list li::before {
       </div>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; color: #cbd5e1; text-align: left; max-width: 4.8in; margin: 0 auto;">
-        <div>• <strong>Guilherme:</strong> Interface & Prompts</div>
+        <div>• <strong>Guilherme:</strong> Interface (Envio)</div>
         <div>• <strong>Lethicia:</strong> Contratos & Regras</div>
-        <div>• <strong>Ingrid:</strong> LangGraph & Multimodal</div>
+        <div>• <strong>Ingrid:</strong> LangGraph, Multimodal & Prompts</div>
         <div>• <strong>André:</strong> API, OCI & Deploy</div>
       </div>
 

@@ -18,11 +18,12 @@ echo "============================================================"
 # 1. Atualização de pacotes de segurança e ferramentas de rede
 echo "[1/5] Atualizando pacotes do sistema e instalando dependências básicas..."
 sudo apt-get update -y
-sudo apt-get install -y \
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
     ca-certificates \
     curl \
     gnupg \
-    ufw \
+    iptables-persistent \
+    netfilter-persistent \
     fail2ban \
     nginx
 
@@ -31,14 +32,16 @@ if ! command -v docker >/dev/null 2>&1; then
     echo "[2/5] Instalando Docker Engine oficial..."
     curl -fsSL https://get.docker.com | sudo sh
     sudo usermod -aG docker "$USER"
+    echo "Usuário $USER adicionado ao grupo docker."
 else
     echo "[2/5] Docker já instalado: $(docker --version)"
+    sudo usermod -aG docker "$USER" 2>/dev/null || true
 fi
 
 # 3. Hardening de Permissões das Credenciais OCI (~/.oci) e .env
-echo "[3/5] Aplicando hardening de permissões em ~/.oci e arquivo .env..."
+echo "[3/5] Aplicando permissões em ~/.oci (UID 10001:10001 do container) e .env..."
 mkdir -p "$HOME/.oci"
-chmod 700 "$HOME/.oci"
+chmod 755 "$HOME/.oci"
 if compgen -G "$HOME/.oci/*.pem" > /dev/null; then
     chmod 600 "$HOME/.oci/"*.pem
 fi
@@ -48,16 +51,19 @@ fi
 if [ -f ".env" ]; then
     chmod 600 ".env"
 fi
+sudo chown -R 10001:10001 "$HOME/.oci"
 
-# 4. Configuração de Firewall Local (UFW) alinhado à Security List da VCN OCI
-# Apenas o Nginx (80/443) e SSH (22) ficam expostos; 8000 e 8501 ficam restritos a 127.0.0.1
-echo "[4/5] Configurando regras de firewall (UFW) e proteção SSH (Fail2Ban)..."
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow 22/tcp comment "SSH Admin"
-sudo ufw allow 80/tcp comment "Nginx Reverse Proxy HTTP"
-sudo ufw allow 443/tcp comment "HTTPS"
-sudo ufw --force enable
+# 4. Configuração de Firewall Local (iptables) alinhado à Security List da VCN OCI
+# A imagem Ubuntu da OCI utiliza regras nativas de iptables com REJECT.
+# Inserimos as portas 80 e 443 antes do REJECT e persistimos via netfilter-persistent (sem UFW).
+echo "[4/5] Configurando regras de firewall (iptables) e proteção SSH (Fail2Ban)..."
+if ! sudo iptables -C INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null; then
+    sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT || sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+fi
+if ! sudo iptables -C INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null; then
+    sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT || sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+fi
+sudo netfilter-persistent save || true
 
 sudo systemctl enable --now fail2ban
 
@@ -70,7 +76,8 @@ if [ -f "deploy/nginx_mediflow.conf" ]; then
     sudo nginx -t && sudo systemctl restart nginx
 fi
 
-sudo docker compose -f deploy/docker-compose.yml up -d --build
+# Executa docker compose sem sudo para preservar o $HOME do usuário (evita montar /root/.oci)
+docker compose -f deploy/docker-compose.yml up -d --build
 
 echo "============================================================"
 echo " ✅ Deploy do MediFlow concluído com sucesso na OCI!"
