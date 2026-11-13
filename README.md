@@ -1,7 +1,8 @@
 # 🏥 MediFlow – Agente Autônomo para Triagem, Extração e Roteamento de Documentos Clínicos
 
 > **Hackathon ONE (Grupo 10) – Oracle Next Education & Alura**  
-> **Equipe:** `g10-Brasil27`
+> **Equipe:** `g10-Brasil27`  
+> **Ambiente no Ar (Deploy OCI Always Free):** `http://137.131.182.189/`
 
 ---
 
@@ -17,20 +18,26 @@ O sistema conta com validação condicional e fluxo **Human-in-the-Loop (HITL)**
 
 ```mermaid
 graph TD
-    A[📄 Ingestão do Documento<br/>Texto / PDF / Imagem] --> B[🤖 Agente Multimodal LLM<br/>Classificação + Extração de Dados]
-    B --> C[📐 Validação Estruturada<br/>JSON Schema]
-    C --> D{Score de Confiança Adequado<br/>E Dados Consistentes?}
+    A[📄 Ingestão do Documento<br/>Texto / PDF / Imagem] --> B[💾 OCI Object Storage<br/>mediflow-recebidos/]
+    B --> C[🤖 Agente Multimodal LLM<br/>Gemini 3.5 Flash Lite + Fallback]
+    C --> D[📐 Validação Estruturada<br/>Modelos Pydantic]
+    D --> E{Achado de Urgência Crítica?}
 
-    D -- Não (Ambíguo / Ilegível) --> E[⚠️ Fila de Revisão Humana<br/>Human-in-the-Loop]
-    E --> F[(☁️ OCI Object Storage<br/>auditoria_humana/)]
+    E -- Sim --> F[🚨 Fila de Emergência Médica<br/>Alerta ao Plantão Médico]
+    F --> G[(☁️ OCI Object Storage<br/>mediflow-urgentes/)]
 
-    D -- Sim --> G{Avaliação de Prioridade Clínica}
+    E -- Não --> H{Score de Confiança Adequado<br/>E Dados Consistentes?}
 
-    G -- Urgente --> H[🚨 Fila de Emergência Médica<br/>Alerta ao Plantão]
-    H --> I[(☁️ OCI Object Storage<br/>processados/urgentes/)]
+    H -- Não (Ambíguo / Ilegível / CRM Inválido) --> I[⚠️ Fila de Revisão Humana<br/>Human-in-the-Loop]
+    I --> J[(☁️ OCI Object Storage<br/>mediflow-auditoria-humana/)]
 
-    G -- Rotina --> J[🏥 Roteamento Automatizado<br/>Farmácia / Autorizações / PEP]
-    J --> K[(☁️ OCI Object Storage<br/>processados/rotina/)]
+    J --> K{Decisão do Revisor Clínico}
+    K -- Destino Rotina --> L[(☁️ OCI Object Storage<br/>mediflow-rotina/)]
+    K -- Destino Urgente --> G
+    K -- Destino Rejeitado --> M[(☁️ OCI Object Storage<br/>mediflow-rejeitados/)]
+
+    H -- Sim --> N[🏥 Roteamento Automatizado<br/>Farmácia / Autorizações / PEP]
+    N --> L
 ```
 
 ---
@@ -63,19 +70,19 @@ As pastas importadas por outras partes (`contratos/`, `regras/`, `agente/`, `pro
 
 ### Pré-requisitos
 
-- **Python 3.13**
+- **Python 3.11 a 3.13** (o Docker e o CI usam o 3.13)
 - Git
 
 Para conferir a versão do Python:
 
 ```bash
-python3.13 --version     # Linux ou macOS
-py -3.13 --version       # Windows
+python3 --version        # Linux ou macOS
+py --version             # Windows
 ```
 
 ### 1. Criar o ambiente virtual e instalar as dependências
 
-Na raiz do repositório.
+Na raiz do repositório (recomendado com Python 3.13).
 
 Linux ou macOS:
 
@@ -141,10 +148,10 @@ Em cada modo, os objetos ficam em cinco buckets (ou cinco pastas, no modo `local
 | Bucket | O que recebe |
 |--------|--------------|
 | `mediflow-recebidos` | Todo documento recebido, antes de processar |
-| `mediflow-urgentes` | Resposta dos casos que vão para a fila de emergência |
-| `mediflow-rotina` | Resposta dos casos de farmácia, autorizações e prontuário |
-| `mediflow-auditoria-humana` | Resposta dos casos retidos para revisão humana |
-| `mediflow-rejeitados` | Reservado (ainda sem uso) |
+| `mediflow-urgentes` | Resposta dos casos que vão para a fila de emergência (ou elevados na auditoria) |
+| `mediflow-rotina` | Resposta dos casos de farmácia, autorizações e prontuário (ou aprovados na auditoria) |
+| `mediflow-auditoria-humana` | Resposta dos casos retidos para revisão humana (Human-in-the-Loop) |
+| `mediflow-rejeitados` | Resposta dos casos recusados após revisão na auditoria humana (`Documento_Rejeitado`) |
 
 No modo `oci`, os buckets precisam existir antes. Cada objeto se chama `<documento_id>.json` e **nunca é sobrescrito**: enviar o mesmo `documento_id` duas vezes devolve `409`. Para repetir um teste, use outro `documento_id`. Se a gravação falhar (`503`), o reenvio do mesmo `documento_id` funciona, porque a entrada parcial é desfeita.
 
@@ -172,9 +179,12 @@ Erros da decisão: `404` (o documento não está pendente, inclusive se já foi 
 
 A rota `POST /api/v1/triagem` aciona o Grafo de Decisão no LangGraph (`agente/grafo.py`), que realiza a leitura multimodal (texto, PDF digital/digitalizado ou imagem em Base64), classifica e extrai os dados clínicos via **Google Gemini (`gemini-3.5-flash-lite`, ajustável em `LLM_MODEL`)** (ou via motor determinístico local de fallback quando `LLM_API_KEY` está vazio) e aplica as regras clínicas de validação e roteamento.
 
-Com a API no ar, o exemplo abaixo envia o cenário de urgência (Linux ou macOS). O `documento_id` do exemplo muda para `TESTE-001`, para você poder repetir o teste mudando o número:
+Com a API no ar, o exemplo abaixo carrega a chave do `.env` e envia o cenário de urgência (Linux ou macOS). O `documento_id` do exemplo muda para `TESTE-001`, para você poder repetir o teste mudando o número:
 
 ```bash
+# Carrega a chave configurada no .env (ou defina com export MEDIFLOW_API_KEY=...)
+export MEDIFLOW_API_KEY=$(grep '^MEDIFLOW_API_KEY=' .env | cut -d '=' -f2-)
+
 python -c "
 import json
 d = json.load(open('dados_teste/2_urgencia/exemplo.json', encoding='utf-8'))['requisicao_entrada']
@@ -185,12 +195,12 @@ print(json.dumps(d))
   -H "Content-Type: application/json" --data-binary @-
 ```
 
-A resposta traz `decisao_roteamento.destino_principal = "Fila_Emergencia_Medica"` e `armazenamento_oci.bucket = "mediflow-urgentes"`. Todas as rotas exigem a chave de acesso (seção 6), inclusive `/docs`: o navegador não manda o cabeçalho `X-API-Key`, então teste pelo `curl` ou por uma extensão que o envie.
+A resposta traz `decisao_roteamento.destino_principal = "Fila_Emergencia_Medica"` e `armazenamento_oci.bucket = "mediflow-urgentes"`. Todas as rotas exigem a chave de acesso (seção 6), inclusive `/docs`: o navegador não manda o cabeçalho `X-API-Key`, então teste pelo `curl` ou por uma extensão que o envie. Se `$MEDIFLOW_API_KEY` estiver vazia ou incorreta, a API responderá `401 Unauthorized`.
 
 ### 6. Chave de acesso e limites da API
 
 - **Chave de acesso:** toda requisição precisa do cabeçalho `X-API-Key` igual a `MEDIFLOW_API_KEY`. A única exceção é `GET /api/v1/saude` (o healthcheck do Docker). Sem a chave certa, a resposta é `401` e nada é gravado.
-- **A API não sobe sem a chave**, nem com menos de 32 caracteres (a mensagem de erro diz como gerar). Gere com `python -c "import secrets; print(secrets.token_urlsafe(32))"` e coloque o mesmo valor no `.env` local, no do servidor e no de quem mais rodar a API ou o painel. O painel Streamlit lê `MEDIFLOW_API_KEY` e manda o cabeçalho sozinho. Só para desenvolvimento, `MEDIFLOW_API_AUTH=desligada` sobe a API sem chave.
+- **A API não sobe sem a chave**, nem com menos de 32 caracteres (a mensagem de erro diz como gerar). Cada ambiente (o computador de cada pessoa e o servidor) gera a sua própria chave com `python -c "import secrets; print(secrets.token_urlsafe(32))"` e a coloca no próprio `.env`. A API e o painel do mesmo ambiente leem a mesma chave. Não compartilhe a chave entre ambientes nem por mensagem. O painel Streamlit lê `MEDIFLOW_API_KEY` e manda o cabeçalho sozinho. Só para desenvolvimento, `MEDIFLOW_API_AUTH=desligada` sobe a API sem chave.
 - **Tamanho:** o corpo da requisição tem no máximo 15 MB (o mesmo `client_max_body_size 15M` do nginx); acima disso, `413`.
 - **Tetos por dia da triagem:** 100 documentos (`MEDIFLOW_TETO_DIARIO_DOCUMENTOS`) e 300 MB (`MEDIFLOW_TETO_DIARIO_MB`). Ao atingir um, `429`, sem gravar nada e sem chamar o Gemini. A contagem fica em memória e zera à meia-noite de `America/Sao_Paulo` e quando a API reinicia.
 
@@ -210,3 +220,14 @@ A resposta traz `decisao_roteamento.destino_principal = "Fila_Emergencia_Medica"
 3. **Cenário 3 – Auditoria Humana (`dados_teste/3_auditoria_humana`):** Caso ambíguo ou com baixa confiabilidade direcionado para revisão humana.
 
 > Somente documentos fictícios. Nenhum dado real de paciente entra no repositório nem passa pelo sistema.
+
+---
+
+## 👥 Equipe e Créditos
+
+Projeto desenvolvido pelo **Grupo 10 (g10-Brasil27)** para o **Hackathon ONE (Oracle Next Education & Alura)**:
+
+* **Guilherme Araujo Silva:** Desenvolveu a lógica de envio de arquivos na interface (geração de ID na sessão, envio em Base64 via API, teto de 10 MB e mensagens amigáveis de erro para códigos 409, 422 e 503), incorporada à aba de envio do painel com coautoria (`2a1ce95`), documentação inicial e abertura do pitch.
+* **Lethicia Almeida:** Criou a arquitetura inicial do painel Streamlit (`7a3c54b`), com o layout visual e as abas de envio, fila de auditoria clínica e histórico. Desenvolveu os contratos de dados estritos com Pydantic (`contratos/modelos.py`), o motor determinístico de regras clínicas (`regras/regras_clinicas.py`), cálculo do Score de Confiança, validação de CRM e a massa de dados sintética dos 3 cenários obrigatórios.
+* **Ingrid Soares:** Conectou o painel Streamlit à API e ao grafo (`MEDIFLOW_API_URL`) e implementou o pipeline de upload multimodal para PDF e imagem em Base64 (`f9f082d`). Desenvolveu o Grafo de Decisão Condicional com LangGraph (`agente/grafo.py`), o pipeline de leitura multimodal e OCR (`agente/leitor_documentos.py`, `agente/visao_multimodal.py`), os prompts estruturados de classificação e extração clínica (`prompts/`), os testes unitários do agente e a infraestrutura de containerização Docker multi-stage com usuário não-root e docker-compose.
+* **André Teixeira:** Integrou a lógica de envio do Guilherme ao painel da Lethicia (`2a1ce95`), conectou a fila de auditoria e registro de decisões humanas à API (`97fcb09`) e implementou o cache em memória das listagens (`743db9c`). Desenvolveu os endpoints REST da API FastAPI (`api/`), a camada de persistência segregada nos 5 buckets do OCI Object Storage com compensação transacional em falhas (`armazenamento/repositorio.py`), as políticas de segurança e tetos diários (`api/seguranca.py`), e realizou o deploy em produção na VM OCI Compute.
