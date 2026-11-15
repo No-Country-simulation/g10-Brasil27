@@ -772,7 +772,7 @@ export default function App() {
                 <span className="text-[11px] text-slate-500">Emergência Médica</span>
               </div>
               <div className="p-3 rounded-xl bg-slate-950 border border-amber-900/60 text-xs">
-                <span className="font-mono text-amber-400 block font-semibold">mediflow-auditoria</span>
+                <span className="font-mono text-amber-400 block font-semibold">mediflow-auditoria-humana</span>
                 <span className="text-[11px] text-slate-500">Revisão Humana</span>
               </div>
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs">
